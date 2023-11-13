@@ -33,14 +33,40 @@ async function run() {
         // ALL COURSES API
         app.get('/courses', async (req, res) => {
 
-            const allCourss = await courseCollection.find({}).toArray()
-            res.send(allCourss)
+            try {
+                // Sort Out The Lowest and Hiest Price
+                const priceStats = await courseCollection.aggregate([
+                    {
+                        $group: {
+                            _id: null,
+                            minPrice: { $min: { $toDouble: "$price" } },
+                            maxPrice: { $max: { $toDouble: "$price" } }
+                        }
+                    }
+                ]).toArray();
+                // Extract the results
+                const { minPrice, maxPrice } = priceStats[0];
+
+                // Find Default Courses and Price Query
+                const { priceQuery } = req.query;
+                let query = {};
+                if (priceQuery !== '') {
+                    query = { price: { $lte: parseFloat(priceQuery) } };
+                }
+                const courses = await courseCollection.find(query).toArray();
+
+                // SEND DATA TO CLIENT LOWEST PRICE, HIGHEST PRICE COURSES 
+                res.send({ minPrice, maxPrice, courses });
+
+            } catch (error) {
+                console.error(error);
+                res.status(500).send('Internal Server Error');
+            }
         })
 
         app.get('/course/:_id', async (req, res) => {
 
             const { _id } = req.params
-            console.log(_id);
             const singleCourse = await courseCollection.findOne({ _id: new ObjectId(_id) })
 
             res.send(singleCourse)
