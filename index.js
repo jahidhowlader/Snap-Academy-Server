@@ -29,11 +29,64 @@ async function run() {
         await client.connect();
 
         const courseCollection = client.db("SnapAcademyDB").collection("courses");
+        const usersCollection = client.db("SnapAcademyDB").collection("users");
+
+        // ALL USERS API
+        app.get('/allUsers', async (req, res) => {
+
+            const users = await usersCollection.find().toArray();
+            res.send(users);
+        })
+
+        app.post('/allUsers', async (req, res) => {
+
+            const user = req.body;
+            const emaiQuery = { email: user.email }
+            const existingUser = await usersCollection.findOne(emaiQuery);
+
+            if (existingUser) {
+                return res.send({ message: 'user already exists' })
+            }
+
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+
+        app.patch('/allUsers/admin/:email', async (req, res) => {
+
+            const { email } = req.params
+            const { role } = req.body
+
+            const updateUserRole = {
+                $set: { role }
+            };
+
+            const updateUser = await usersCollection.updateOne({ email }, updateUserRole)
+            res.send(updateUser)
+            console.log(email, role);
+        })
+
+        app.delete('/allUsers', async (req, res) => {
+
+            const { email } = req.query
+            const users = await usersCollection.findOne({ email })
+
+            await usersCollection.deleteOne(users)
+            res.send({ message: 'Successfully delete user' });
+        })
 
         // ALL COURSES API
         app.get('/courses', async (req, res) => {
 
             try {
+                // FIND ACCENDING ORDER
+                // const findAscending = await courseCollection.find().sort({ title: 1 }).toArray();
+                // console.log(coursesAscending);
+
+                // FIND DESCENDING ORDER
+                // const findDescending = await courseCollection.find().sort({ title: -1 }).toArray();
+                // console.log(coursesDescending);
+
                 // Sort Out The Lowest and Hiest Price
                 const priceStats = await courseCollection.aggregate([
                     {
