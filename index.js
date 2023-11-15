@@ -26,7 +26,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect();
+        await client.connect();
 
         const courseCollection = client.db("SnapAcademyDB").collection("courses");
         const usersCollection = client.db("SnapAcademyDB").collection("users");
@@ -158,7 +158,7 @@ run().catch(console.dir);
 
 app.get('/', async (req, res) => {
 
-    res.send('hahahahahaha')
+    res.send('SERVER IS RUNNING')
 })
 
 app.listen(port, () => {
