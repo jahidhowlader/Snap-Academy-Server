@@ -36,6 +36,7 @@ async function run() {
 
         const courseCollection = client.db("SnapAcademyDB").collection("courses");
         const usersCollection = client.db("SnapAcademyDB").collection("users");
+        const reviewsCollection = client.db("SnapAcademyDB").collection("reviews");
         const subscribationCollection = client.db("SnapAcademyDB").collection("subscribations");
 
         // ALL USERS API
@@ -136,6 +137,16 @@ async function run() {
             const singleCourse = await courseCollection.findOne({ _id: new ObjectId(_id) })
 
             res.send(singleCourse)
+        })
+
+        // USER REVIEW
+        app.post('/reviews/:email', async (req, res) => {
+
+            const { email, name, photo, rating, suggetion, review } = req.body
+            const addReview = { email, name, photo, rating, suggetion, review }
+
+            await reviewsCollection.insertOne({ addReview })
+            res.send({ message: 'review added' })
         })
 
         // SUBSCRIBE
