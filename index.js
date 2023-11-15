@@ -30,6 +30,7 @@ async function run() {
 
         const courseCollection = client.db("SnapAcademyDB").collection("courses");
         const usersCollection = client.db("SnapAcademyDB").collection("users");
+        const subscribationCollection = client.db("SnapAcademyDB").collection("subscribations");
 
         // ALL USERS API
         app.get('/allUsers', async (req, res) => {
@@ -76,6 +77,12 @@ async function run() {
         })
 
         // ALL COURSES API
+        app.get('/allCourses', async (req, res) => {
+
+            const allCourse = await courseCollection.find().toArray()
+            res.send(allCourse)
+        })
+
         app.get('/courses', async (req, res) => {
 
             try {
@@ -123,6 +130,19 @@ async function run() {
             const singleCourse = await courseCollection.findOne({ _id: new ObjectId(_id) })
 
             res.send(singleCourse)
+        })
+
+        // SUBSCRIBE
+        app.post('/subscribation', async (req, res) => {
+
+            const { email } = req.body
+
+            const existingUser = await subscribationCollection.findOne({ email });
+            if (existingUser) {
+                return res.send({ message: 'email already exists' })
+            }
+
+            await subscribationCollection.insertOne({ email })
         })
 
 
