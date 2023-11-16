@@ -10,14 +10,13 @@ const app = express()
 // MIDDLEWARE
 app.use(cors())
 app.use(express.json())
-// Serve static assets
-app.use(express.static(path.join(__dirname, 'build')));
 
 
-// Serve the main index.html file for all routes
-app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
-  });
+app.get('/', async (req, res) => {
+
+    res.send('SERVER IS RUNNING')
+})
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h88b4w7.mongodb.net/?retryWrites=true&w=majority`;
 
