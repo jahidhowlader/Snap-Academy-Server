@@ -8,9 +8,7 @@ const port = process.env.PORT || 3000
 const app = express()
 
 // MIDDLEWARE
-app.use(cors({
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-}))
+app.use(cors())
 
 app.use(express.json())
 // Serve the static files from the React app
