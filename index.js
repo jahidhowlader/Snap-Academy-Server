@@ -99,13 +99,6 @@ async function run() {
         app.get('/courses', async (req, res) => {
 
             try {
-                // FIND ACCENDING ORDER
-                // const findAscending = await courseCollection.find().sort({ title: 1 }).toArray();
-                // console.log(coursesAscending);
-
-                // FIND DESCENDING ORDER
-                // const findDescending = await courseCollection.find().sort({ title: -1 }).toArray();
-                // console.log(coursesDescending);
 
                 // Sort Out The Lowest and Hiest Price
                 const priceStats = await courseCollection.aggregate([
