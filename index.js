@@ -12,14 +12,6 @@ app.use(cors())
 
 app.use(express.json())
 
-// Serve the static files from the React app
-// app.use(express.static(path.join(__dirname, 'client/build')));
-
-// Handle requests to all routes by serving the React app
-// app.get('*', (req, res) => {
-//     res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-// });
-
 app.get('/', async (req, res) => {
 
     res.send('SERVER IS RUNNING')
