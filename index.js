@@ -45,6 +45,15 @@ async function run() {
         const reviewsCollection = client.db("SnapAcademyDB").collection("reviews");
         const subscribationCollection = client.db("SnapAcademyDB").collection("subscribations");
 
+        // JWT POST
+        app.post('/jwt', (req, res) => {
+
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+
+            res.send({ token })
+        })
+
         // ALL USERS API
         app.get('/allUsers', async (req, res) => {
 
