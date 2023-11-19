@@ -1,6 +1,8 @@
 const express = require('express')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors')
+const jwt = require('jsonwebtoken');
+var cookieParser = require('cookie-parser')
 require('dotenv').config()
 
 const port = process.env.PORT || 3000
@@ -9,14 +11,33 @@ const app = express()
 
 // MIDDLEWARE
 app.use(cors())
-
 app.use(express.json())
+app.use(cookieParser())
+
+// VERIFYJWT TOKEN
+const verifyJWT = (req, res, next) => {
+
+    const clientToken = req.headers.authorization;
+
+    if (!clientToken) {
+        return res.status(401).send({ error: true, message: 'unauthorized access' });
+    }
+
+    jwt.verify(clientToken, process.env.ACCESS_TOKEN_SECRET, (err, email) => {
+
+        if (err) {
+            return res.status(498).send({ error: true, message: 'Invaild Token..! Please Login again..' })
+        }
+
+        req.user = email;
+        next();
+    })
+}
 
 app.get('/', async (req, res) => {
 
     res.send('SERVER IS RUNNING')
 })
-
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.h88b4w7.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -43,14 +64,31 @@ async function run() {
         // JWT POST
         app.post('/jwt', (req, res) => {
 
-            const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            const email = req.body;
+
+            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
 
             res.send({ token })
         })
 
+        // verifyAdmin
+        const verifyAdmin = async (req, res, next) => {
+
+            console.log(req.email);
+
+            const user = await usersCollection.findOne({ email: req.user.email });
+
+            console.log(user);
+
+            if (user?.role !== 'admin') {
+                return res.status(403).send({ error: true, message: 'forbidden access' });
+            }
+
+            next();
+        }
+
         // ALL USERS API
-        app.get('/allUsers', async (req, res) => {
+        app.get('/allUsers', verifyJWT, verifyAdmin, async (req, res) => {
 
             const users = await usersCollection.find().toArray();
             res.send(users);
@@ -103,7 +141,6 @@ async function run() {
         app.get('/courses', async (req, res) => {
 
             try {
-
                 // Sort Out The Lowest and Hiest Price
                 const priceStats = await courseCollection.aggregate([
                     {
@@ -114,6 +151,7 @@ async function run() {
                         }
                     }
                 ]).toArray();
+                
                 // Extract the results
                 const { minPrice, maxPrice } = priceStats[0];
 
@@ -143,7 +181,7 @@ async function run() {
         })
 
         // USER REVIEW
-        app.post('/reviews/:email', async (req, res) => {
+        app.post('/reviews/:email', verifyJWT, async (req, res) => {
 
             const { email, name, photo, rating, suggetion, review } = req.body
             const addReview = { email, name, photo, rating, suggetion, review }
