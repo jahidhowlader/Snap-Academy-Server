@@ -92,6 +92,14 @@ async function run() {
             res.send(users);
         })
 
+        // CHECK ADMIN AND USER ROLE
+        app.get('/checkRole/:email', verifyJWT, async (req, res) => {
+
+            const user = await usersCollection.findOne({ email: req.params.email })
+
+            res.send(user.role)
+        })
+
         app.post('/allUsers', async (req, res) => {
 
             const user = req.body;
@@ -106,7 +114,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/allUsers/admin/:email', async (req, res) => {
+        app.patch('/allUsers/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
 
             const { email } = req.params
             const { role } = req.body
@@ -120,7 +128,7 @@ async function run() {
             console.log(email, role);
         })
 
-        app.delete('/allUsers', async (req, res) => {
+        app.delete('/allUsers', verifyJWT, verifyAdmin, async (req, res) => {
 
             const { email } = req.query
             const users = await usersCollection.findOne({ email })
@@ -130,7 +138,7 @@ async function run() {
         })
 
         // ALL COURSES API
-        app.get('/allCourses', async (req, res) => {
+        app.get('/allCourses', verifyJWT, verifyAdmin, async (req, res) => {
 
             const allCourse = await courseCollection.find().toArray()
             res.send(allCourse)
@@ -149,7 +157,7 @@ async function run() {
                         }
                     }
                 ]).toArray();
-                
+
                 // Extract the results
                 const { minPrice, maxPrice } = priceStats[0];
 
@@ -179,12 +187,18 @@ async function run() {
         })
 
         // USER REVIEW
+        app.get('/reviews', async (req, res) => {
+
+            const reviews = await reviewsCollection.find().toArray()
+            res.send(reviews)
+        })
+
         app.post('/reviews/:email', verifyJWT, async (req, res) => {
 
             const { email, name, photo, rating, suggetion, review } = req.body
             const addReview = { email, name, photo, rating, suggetion, review }
 
-            await reviewsCollection.insertOne({ addReview })
+            await reviewsCollection.insertOne(addReview)
             res.send({ message: 'review added' })
         })
 
