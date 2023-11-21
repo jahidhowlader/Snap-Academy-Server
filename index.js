@@ -64,7 +64,7 @@ async function run() {
 
             const email = req.body;
 
-            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '24h' })
 
             res.send({ token })
         })
@@ -147,6 +147,7 @@ async function run() {
         app.get('/courses', async (req, res) => {
 
             try {
+
                 // Sort Out The Lowest and Hiest Price
                 const priceStats = await courseCollection.aggregate([
                     {
@@ -162,11 +163,19 @@ async function run() {
                 const { minPrice, maxPrice } = priceStats[0];
 
                 // Find Default Courses and Price Query
-                const { priceQuery } = req.query;
+                const { priceQuery, searchQuery } = req.query;
+                
                 let query = {};
+
                 if (priceQuery !== '') {
-                    query = { price: { $lte: parseFloat(priceQuery) } };
+                    query.price = { $lte: parseFloat(priceQuery) };
                 }
+
+                // Add search filter if present
+                if (searchQuery) {
+                    query.title = { $regex: new RegExp(searchQuery, 'i') };
+                }
+
                 const courses = await courseCollection.find(query).toArray();
 
                 // SEND DATA TO CLIENT LOWEST PRICE, HIGHEST PRICE COURSES 
