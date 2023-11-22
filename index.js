@@ -1,8 +1,12 @@
 const express = require('express')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const body_parser = require('body-parser')
 const cors = require('cors')
 const jwt = require('jsonwebtoken');
 var cookieParser = require('cookie-parser')
+const globals = require('node-global-storage');
+const { default: axios } = require('axios');
+const { v4: uuidv4 } = require('uuid')
 require('dotenv').config()
 
 const port = process.env.PORT || 3000
@@ -10,11 +14,15 @@ const port = process.env.PORT || 3000
 const app = express()
 
 // MIDDLEWARE
-app.use(cors())
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}))
+app.use(body_parser.json())
 app.use(express.json())
 app.use(cookieParser())
 
-// VERIFYJWT TOKEN
+// VERIFYJWT TOKEN MIDDLEWARE
 const verifyJWT = (req, res, next) => {
 
     const clientToken = req.headers.authorization;
@@ -33,6 +41,10 @@ const verifyJWT = (req, res, next) => {
         next();
     })
 }
+
+
+// ********************************************************************************************************************************************
+// **********************************************************START BACKEND ROUTES**********************************************************************************
 
 app.get('/', async (req, res) => {
 
@@ -72,11 +84,7 @@ async function run() {
         // verifyAdmin
         const verifyAdmin = async (req, res, next) => {
 
-            console.log(req.email);
-
             const user = await usersCollection.findOne({ email: req.user.email });
-
-            console.log(user);
 
             if (user?.role !== 'admin') {
                 return res.status(403).send({ error: true, message: 'forbidden access' });
@@ -125,7 +133,6 @@ async function run() {
 
             const updateUser = await usersCollection.updateOne({ email }, updateUserRole)
             res.send(updateUser)
-            console.log(email, role);
         })
 
         app.delete('/allUsers', verifyJWT, verifyAdmin, async (req, res) => {
@@ -164,7 +171,7 @@ async function run() {
 
                 // Find Default Courses and Price Query
                 const { priceQuery, searchQuery } = req.query;
-                
+
                 let query = {};
 
                 if (priceQuery !== '') {
@@ -223,6 +230,114 @@ async function run() {
 
             await subscribationCollection.insertOne({ email })
         })
+
+
+        // **************************************************************************************************************************
+        // ****************************************************PATMENT WITH BKASH START ******************************************************
+
+        // PAYMENT MIDDLEWARE
+        const bkash_auth = async (req, res, next) => {
+
+            globals.unset('id_token')
+
+            try {
+                const { data } = await axios.post(process.env.bkash_grant_token_url, {
+                    app_key: process.env.bkash_api_key,
+                    app_secret: process.env.bkash_secret_key,
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        username: process.env.bkash_username,
+                        password: process.env.bkash_password,
+                    }
+                })
+
+                globals.set('id_token', data.id_token, { protected: true })
+                next()
+
+            } catch (error) {
+                return res.status(401).json({ error: error.message })
+            }
+        }
+
+        // 01823074817
+        app.post('/api/bkash/payment/create', bkash_auth, async (req, res) => {
+
+            const { amount, userId } = req.body
+
+            globals.set('userId', amount, userId)
+
+            try {
+                const { data } = await axios.post(process.env.bkash_create_payment_url, {
+                    mode: '0011',
+                    payerReference: " ",
+                    callbackURL: 'http://localhost:3000/api/bkash/payment/callback',
+                    amount: amount,
+                    currency: "BDT",
+                    intent: 'sale',
+                    merchantInvoiceNumber: 'Inv' + uuidv4().substring(0, 5)
+                }, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                        authorization: globals.get('id_token'),
+                        'x-app-key': process.env.bkash_api_key,
+                    }
+                })
+
+                return res.status(200).json({ bkashURL: data.bkashURL })
+
+            } catch (error) {
+                return res.status(401).json({ error: error.message })
+            }
+        })
+
+        // PAYMENT GET API
+        app.get('/api/bkash/payment/callback', bkash_auth, async (req, res) => {
+
+            const { paymentID, status } = req.query
+
+            if (status === 'cancel' || status === 'failure') {
+                return res.redirect(`http://localhost:5173/error?message=${status}`)
+            }
+            if (status === 'success') {
+                try {
+                    const { data } = await axios.post(process.env.bkash_execute_payment_url, { paymentID }, {
+                        headers: {
+                            "Content-Type": "application/json",
+                            Accept: "application/json",
+                            authorization: globals.get('id_token'),
+                            'x-app-key': process.env.bkash_api_key,
+                        }
+                    })
+                    if (data && data.statusCode === '0000') {
+                        //const userId = globals.get('userId')
+                        // await paymentModel.create({
+                        //     userId: Math.random() * 10 + 1,
+                        //     paymentID,
+                        //     trxID: data.trxID,
+                        //     date: data.paymentExecuteTime,
+                        //     amount: parseInt(data.amount)
+                        // })
+
+                        console.log('324', data);
+
+                        return res.redirect(`http://localhost:5173/success`)
+
+                    } else {
+                        return res.redirect(`http://localhost:5173/error?message=${data.statusMessage}`)
+                    }
+                } catch (error) {
+                    console.log(error)
+                    return res.redirect(`http://localhost:5173/error?message=${error.message}`)
+                }
+            }
+        })
+
+
+        // **************************************************************************************************************************
+        // ****************************************************PATMENT WITH BKASH END******************************************************
 
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
