@@ -70,6 +70,7 @@ async function run() {
         const usersCollection = client.db("SnapAcademyDB").collection("users");
         const reviewsCollection = client.db("SnapAcademyDB").collection("reviews");
         const subscribationCollection = client.db("SnapAcademyDB").collection("subscribations");
+        const paymentCollection = client.db("SnapAcademyDB").collection("payments");
 
         // JWT POST
         app.post('/jwt', (req, res) => {
@@ -239,6 +240,7 @@ async function run() {
         const bkash_auth = async (req, res, next) => {
 
             globals.unset('id_token')
+            // globals.unset('courseId')
 
             try {
                 const { data } = await axios.post(process.env.bkash_grant_token_url, {
@@ -264,9 +266,11 @@ async function run() {
         // 01823074817
         app.post('/api/bkash/payment/create', bkash_auth, async (req, res) => {
 
-            const { amount, userId } = req.body
+            const { amount, courseId, email } = req.body
 
-            globals.set('userId', amount, userId)
+            globals.set('userId', amount, courseId)
+            globals.set('courseId', courseId)
+            globals.set('email', email)
 
             try {
                 const { data } = await axios.post(process.env.bkash_create_payment_url, {
@@ -298,6 +302,7 @@ async function run() {
 
             const { paymentID, status } = req.query
 
+
             if (status === 'cancel' || status === 'failure') {
                 return res.redirect(`http://localhost:5173/error?message=${status}`)
             }
@@ -312,8 +317,13 @@ async function run() {
                         }
                     })
                     if (data && data.statusCode === '0000') {
-                        //const userId = globals.get('userId')
-                        // await paymentModel.create({
+
+                        const courseId = globals.get('courseId')
+                        const email = globals.get('email')
+
+                        // await paymentCollection.insertOne({
+                        //     courseId,
+                        //     email,
                         //     userId: Math.random() * 10 + 1,
                         //     paymentID,
                         //     trxID: data.trxID,
@@ -321,13 +331,25 @@ async function run() {
                         //     amount: parseInt(data.amount)
                         // })
 
-                        console.log('324', data);
+                        const result = {
+                            courseId,
+                            email,
+                            userId: Math.random() * 10 + 1,
+                            paymentID,
+                            trxID: data.trxID,
+                            date: data.paymentExecuteTime,
+                            amount: parseInt(data.amount)
+                        }
+
+                        console.log('courseId', courseId);
+                        console.log('result', result);
 
                         return res.redirect(`http://localhost:5173/success`)
 
                     } else {
                         return res.redirect(`http://localhost:5173/error?message=${data.statusMessage}`)
                     }
+
                 } catch (error) {
                     console.log(error)
                     return res.redirect(`http://localhost:5173/error?message=${error.message}`)
